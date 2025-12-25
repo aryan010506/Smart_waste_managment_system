@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Smart Waste Management Dashboard</title>
+
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<style>
+*{box-sizing:border-box;font-family:Arial,Helvetica,sans-serif}
+
+
+body{margin:0;background:#000;color:#fff}
+.app{display:flex;min-height:100vh}
+
+
+.sidebar{
+  width:240px;background:#000;padding:20px;
+  display:flex;flex-direction:column;gap:20px;
+  border-right:1px solid #222;
+}
+.sidebar h2{color:#22c55e;margin:0}
+.sidebar label{font-size:13px;opacity:.8}
+
+
+select,button{
+  width:100%;padding:10px;border-radius:10px;
+  border:1px solid #222;background:#000;color:#fff;margin-top:6px
+}
+select option{background:#000;color:#fff}
+button{cursor:pointer}
+button:hover{background:#111}
+.report-btn{padding:14px;font-size:15px;font-weight:bold}
+
+
+.main{flex:1;padding:18px}
+.card{background:#0a0a0a;padding:16px;border-radius:16px;margin-bottom:16px}
+
+
+#map{height:300px;border-radius:14px}
+
+
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.chart-box{height:220px}
+canvas{width:100%!important;height:100%!important}
+
+
+.menu-btn{
+  display:none;
+  background:#000;color:#fff;border:1px solid #222;
+  padding:10px 14px;border-radius:10px;margin-bottom:12px
+}
+
+
+.gov-report{
+  background:#fff;color:#000;padding:32px;
+  border:1px solid #000;font-family:"Times New Roman",serif
+}
+.gov-header{text-align:center;border-bottom:2px solid #000;margin-bottom:20px}
+.gov-section{margin-bottom:18px}
+.gov-table{width:100%;border-collapse:collapse}
+.gov-table th,.gov-table td{border:1px solid #000;padding:6px}
+
+
+@media (max-width:768px){
+  .menu-btn{display:block}
+  .app{flex-direction:column}
+  .sidebar{
+    position:fixed;top:0;left:0;width:260px;height:100vh;
+    transform:translateX(-100%);
+    transition:transform .3s ease;
+    z-index:3000;
+  }
+  .sidebar.open{transform:translateX(0)}
+  .sidebar.open ~ .main{
+    pointer-events:none;
+    filter:blur(2px);
+  }
+  .sidebar.open ~ .main .leaflet-control{display:none}
+  .grid{grid-template-columns:1fr}
+  #map{height:220px}
+}
+
+
+@media print{
+  body *{visibility:hidden}
+  .gov-report,.gov-report *{visibility:visible}
+  .gov-report{position:absolute;left:0;top:0;width:100%}
+}
+</style>
+</head>
+
+<body>
+<div class="app">
+
+
+<aside class="sidebar" id="sidebar">
+  <h2>♻ Smart Waste</h2>
+
+  <div>
+    <label>Select State</label>
+    <select id="stateA"></select>
+    <button onclick="analyzeSingle()">Analyze</button>
+  </div>
+
+  <div>
+    <label>Compare States</label>
+    <select id="stateB"></select>
+    <select id="stateC"></select>
+    <button onclick="analyzeCompare()">Compare</button>
+  </div>
+
+  <button class="report-btn" onclick="generateGovReport()">
+    Generate Government Report
+  </button>
+</aside>
+
+
+<main class="main">
+
+<button class="menu-btn" onclick="toggleSidebar()">☰ Menu</button>
+
+<h2 id="title">Smart Waste Dashboard</h2>
+
+<div class="card">
+  <h3>India Map</h3>
+  <div id="map"></div>
+</div>
+
+<div id="aiResult"></div>
+<div id="wsiContainer"></div>
+
+<div class="grid">
+  <div class="card">
+    <h3>Waste Trend</h3>
+    <div class="chart-box"><canvas id="lineChart"></canvas></div>
+  </div>
+  <div class="card">
+    <h3>Zone Waste Levels</h3>
+    <div class="chart-box"><canvas id="barChart"></canvas></div>
+  </div>
+</div>
+
+<div id="reportOutput"></div>
+
+</main>
+</div>
+
+<script>
+const states=[
+"Andhra Pradesh","Arunachal Pradesh","Assam","Bihar","Chhattisgarh",
+"Goa","Gujarat","Haryana","Himachal Pradesh","Jharkhand","Karnataka",
+"Kerala","Madhya Pradesh","Maharashtra","Manipur","Meghalaya","Mizoram",
+"Nagaland","Odisha","Punjab","Rajasthan","Sikkim","Tamil Nadu","Telangana",
+"Tripura","Uttar Pradesh","Uttarakhand","West Bengal","Delhi"
+];
+
+["stateA","stateB","stateC"].forEach(id=>{
+  document.getElementById(id).innerHTML=
+    '<option value="">Select State</option>'+
+    states.map(s=>`<option>${s}</option>`).join("");
+});
+
+const map=L.map("map").setView([20.59,78.96],5);
+L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png").addTo(map);
+
+let markers=[],barChart=null,lineChart=null;
+let reportData=[],labels=[];
+
+const barChartCanvas=document.getElementById("barChart");
+const lineChartCanvas=document.getElementById("lineChart");
+
+async function fetchState(state){
+  const r=await fetch("https://smart-waste-backend-1kkx.onrender.com/state-analysis",{
+    method:"POST",headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({state})
+  });
+  return r.json();
+}
+
+function clearUI(){
+  aiResult.innerHTML="";
+  wsiContainer.innerHTML="";
+}
+
+function closeSidebarIfMobile(){
+  if(window.innerWidth<=768){
+    document.getElementById("sidebar").classList.remove("open");
+  }
+}
+
+async function analyzeSingle(){
+  if(!stateA.value)return;
+  closeSidebarIfMobile();
+  clearUI();
+  reportData=[await fetchState(stateA.value)];
+  labels=[stateA.value];
+  title.textContent=`Smart Waste Dashboard: ${stateA.value}`;
+  render();
+}
+
+async function analyzeCompare(){
+  if(!stateB.value||!stateC.value)return;
+  closeSidebarIfMobile();
+  clearUI();
+  reportData=[await fetchState(stateB.value),await fetchState(stateC.value)];
+  labels=[stateB.value,stateC.value];
+  title.textContent=`Smart Waste Dashboard: ${labels.join(" vs ")}`;
+  render();
+}
+
+function render(){
+  markers.forEach(m=>map.removeLayer(m));
+  markers=[];
+  if(barChart)barChart.destroy();
+  if(lineChart)lineChart.destroy();
+
+  reportData.forEach((d,i)=>{
+    markers.push(
+      L.marker([d.center.lat,d.center.lng])
+      .addTo(map)
+      .bindPopup(`${labels[i]}: ${d.avg}%`)
+    );
+  });
+
+  if(markers.length===1){
+    map.setView(markers[0].getLatLng(),7);
+  }else{
+    map.fitBounds(L.featureGroup(markers).getBounds().pad(0.5));
+  }
+
+  barChart=new Chart(barChartCanvas,{
+    type:"bar",
+    data:{labels:["Zone A","Zone B","Zone C"],
+      datasets:reportData.map((d,i)=>({
+        label:labels[i],data:d.zones,backgroundColor:"#22c55e"
+      }))
+    },
+    options:{maintainAspectRatio:false}
+  });
+
+  lineChart=new Chart(lineChartCanvas,{
+    type:"line",
+    data:{labels:["T1","T2","T3","T4","Now"],
+      datasets:reportData.map((d,i)=>({
+        label:labels[i],data:d.trend,borderColor:"#22c55e",tension:.4
+      }))
+    },
+    options:{maintainAspectRatio:false}
+  });
+
+  aiResult.innerHTML=reportData.map((d,i)=>`
+    <div class="card">
+      <h3>${labels[i]} – AI Analysis</h3>
+      <p>${d.advice}</p>
+    </div>`).join("");
+
+  renderWSI();
+}
+
+function renderWSI(){
+  wsiContainer.innerHTML=reportData.map((d,i)=>{
+    const score=Math.min(100,Math.max(0,d.avg+(d.trend.at(-1)-d.trend[0])));
+    let level="Low Risk",color="#22c55e";
+    if(score>=70){level="High Risk";color="#ef4444";}
+    else if(score>=50){level="Moderate Risk";color="#facc15";}
+    return `<div class="card">
+      <h3>${labels[i]} – Waste Severity Index</h3>
+      <h2 style="color:${color}">${level}</h2>
+      <p><b>Score:</b> ${score}/100</p>
+    </div>`;
+  }).join("");
+}
+
+function generateGovReport(){
+  if(!reportData.length)return;
+
+  closeSidebarIfMobile();   
+
+  const date=new Date().toLocaleDateString("en-IN");
+  reportOutput.innerHTML=`
+    <div class="gov-report">
+      <div class="gov-header">
+        <h1>Government of India</h1>
+        <h2>Ministry of Environment, Forest and Climate Change</h2>
+        <h3>Smart Waste Management Assessment Report</h3>
+        <p><b>Date:</b> ${date}</p>
+      </div>
+      ${reportData.map((d,i)=>`
+        <div class="gov-section">
+          <h3>${labels[i]}</h3>
+          <table class="gov-table">
+            <tr><th>Metric</th><th>Value</th></tr>
+            <tr><td>Average Waste</td><td>${d.avg}%</td></tr>
+            <tr><td>Zone A</td><td>${d.zones[0]}%</td></tr>
+            <tr><td>Zone B</td><td>${d.zones[1]}%</td></tr>
+            <tr><td>Zone C</td><td>${d.zones[2]}%</td></tr>
+          </table>
+          <p><b>AI Observation:</b> ${d.advice}</p>
+        </div>`).join("")}
+      <div style="text-align:center">
+        <button onclick="window.print()">Download PDF</button>
+      </div>
+    </div>`;
+}
+
+function toggleSidebar(){
+  document.getElementById("sidebar").classList.toggle("open");
+}
+</script>
+</body>
+</html>

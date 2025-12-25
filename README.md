@@ -5,9 +5,9 @@ AI-Powered Smart Waste Management Web Application
 
 SMART WASTE is an AI-driven web application designed to help governments and city authorities monitor, analyze, and optimize waste management using intelligent insights. The platform combines interactive dashboards, state-level visualization, and Google Gemini–powered AI analysis to support data-driven decision-making for smart and sustainable cities.
 
-🚀 #Key Features
-
-🗺️ #Interactive State-Level Visualization
+🚀 Key Features
+ 
+🗺️ Interactive State-Level Visualization
 1) Select any Indian state from the dashboard
 2) Highlighted state marker on an interactive world map
 3) Clear geographical context without overwhelming data

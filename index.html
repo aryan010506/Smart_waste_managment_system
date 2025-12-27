@@ -4,311 +4,362 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Smart Waste Management Dashboard</title>
-
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.css" />
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
 <style>
 *{box-sizing:border-box;font-family:Arial,Helvetica,sans-serif}
-
-
-body{margin:0;background:#000;color:#fff}
+body{margin:0;background:#000;color:#fff; overflow-x: hidden;}
 .app{display:flex;min-height:100vh}
-
-
 .sidebar{
-  width:240px;background:#000;padding:20px;
-  display:flex;flex-direction:column;gap:20px;
-  border-right:1px solid #222;
+ width:240px;background:#000;padding:20px;
+ display:flex;flex-direction:column;gap:20px;
+ border-right:1px solid #222;
+ transition: transform 0.3s ease;
 }
 .sidebar h2{color:#22c55e;margin:0}
 .sidebar label{font-size:13px;opacity:.8}
-
-
+.sidebar-section { display: flex; flex-direction: column; gap: 8px; }
 select,button{
-  width:100%;padding:10px;border-radius:10px;
-  border:1px solid #222;background:#000;color:#fff;margin-top:6px
+ width:100%;padding:10px;border-radius:10px;
+ border:1px solid #222;background:#000;color:#fff;
 }
 select option{background:#000;color:#fff}
 button{cursor:pointer}
 button:hover{background:#111}
-.report-btn{padding:14px;font-size:15px;font-weight:bold}
-
-
-.main{flex:1;padding:18px}
-.card{background:#0a0a0a;padding:16px;border-radius:16px;margin-bottom:16px}
-
-
-#map{height:300px;border-radius:14px}
-
-
+.forecast-btn{font-weight:bold;background:#000;color:#fff;border:1px solid #333;}
+.report-btn{font-weight:bold;background:#22c55e;color:#000; border:none;}
+.route-btn { 
+ background: #000; color: #fff; border: 1px solid #333; margin-top: 15px; 
+ font-weight: bold; padding: 12px; font-size: 14px; transition: all 0.3s ease;
+}
+.main{flex:1;padding:18px; width: 100%;}
+.card{ background:#0a0a0a; padding:16px; border-radius:16px; margin-bottom:16px; border: 1px solid #111; display: flex; flex-direction: column; }
+#map{height:400px;border-radius:14px; z-index: 1; width: 100%;}
+.map-chart-row{ display:grid; grid-template-columns:2fr 1fr; gap:16px; margin-bottom:16px; align-items: stretch; }
+.chart-legend { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin-top: 15px; font-size: 12px; }
+.legend-item { display: flex; align-items: center; gap: 5px; }
+.dot { height: 10px; width: 10px; border-radius: 50% }
+.wsi-status { font-size: 24px; font-weight: bold; margin-top: 8px; }
+.sol-grid { display: grid; grid-template-columns: 1fr; gap: 12px; margin-top: 10px; }
+.sol-item { display: flex; align-items: start; gap: 10px; background: #111; padding: 12px; border-radius: 8px; }
+.sol-text { font-size: 14px; line-height: 1.4; opacity: 0.9; }
+.offset-box { background: linear-gradient(135deg, #064e3b 0%, #065f46 100%); color: #fff; border: none; }
 .grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
-.chart-box{height:220px}
+.chart-box{ flex-grow: 1; min-height: 250px; display: flex; align-items: center; justify-content: center; }
 canvas{width:100%!important;height:100%!important}
-
-
-.menu-btn{
-  display:none;
-  background:#000;color:#fff;border:1px solid #222;
-  padding:10px 14px;border-radius:10px;margin-bottom:12px
-}
-
-
-.gov-report{
-  background:#fff;color:#000;padding:32px;
-  border:1px solid #000;font-family:"Times New Roman",serif
-}
+.menu-btn { display:none; background:#000;color:#fff;border:1px solid #222; padding:10px 14px;border-radius:10px;margin-bottom:12px; position: sticky; top: 10px; z-index: 1001; }
+.fill-bar-bg { background: #333; height: 8px; width: 100%; border-radius: 4px; margin-top: 8px; overflow: hidden; }
+.fill-bar-inner { height: 100%; transition: width 0.5s; }
+.gov-report{ background:#fff;color:#000;padding:32px; border:2px solid #000;font-family:"Times New Roman",serif; margin-top: 40px; display: none; }
 .gov-header{text-align:center;border-bottom:2px solid #000;margin-bottom:20px}
-.gov-section{margin-bottom:18px}
-.gov-table{width:100%;border-collapse:collapse}
-.gov-table th,.gov-table td{border:1px solid #000;padding:6px}
-
-
-@media (max-width:768px){
-  .menu-btn{display:block}
-  .app{flex-direction:column}
-  .sidebar{
-    position:fixed;top:0;left:0;width:260px;height:100vh;
-    transform:translateX(-100%);
-    transition:transform .3s ease;
-    z-index:3000;
-  }
-  .sidebar.open{transform:translateX(0)}
-  .sidebar.open ~ .main{
-    pointer-events:none;
-    filter:blur(2px);
-  }
-  .sidebar.open ~ .main .leaflet-control{display:none}
-  .grid{grid-template-columns:1fr}
-  #map{height:220px}
+.gov-section{margin-bottom:25px; border-bottom: 1px dashed #ccc; padding-bottom: 15px;}
+.zone-item { background: #f9f9f9; border: 1px solid #ddd; padding: 10px; margin: 8px 0; display: flex; justify-content: space-between; color: #000; }
+.gov-graph-row { 
+ display: flex !important; 
+ flex-direction: row !important; 
+ flex-wrap: nowrap !important; 
+ gap: 10px; 
+ justify-content: space-between; 
+ margin-bottom: 20px; 
 }
-
-
+.gov-graph-box { width: 48% !important; text-align: center; }
+.gov-graph-box img { width: 100%; border: 1px solid #000; }
+.leaflet-routing-container { display: none; }
+@media (max-width:768px){
+ .menu-btn{display:block}
+ .app{flex-direction:column}
+ .sidebar{ position:fixed;top:0;left:0;width:260px;height:100vh; transform:translateX(-100%); z-index:3000; }
+ .sidebar.open{transform:translateX(0)}
+ .grid{grid-template-columns:1fr}
+ .map-chart-row{grid-template-columns:1fr}
+}
 @media print{
-  body *{visibility:hidden}
-  .gov-report,.gov-report *{visibility:visible}
-  .gov-report{position:absolute;left:0;top:0;width:100%}
+ body *{visibility:hidden}
+ .gov-report,.gov-report *{visibility:visible}
+ .gov-report{position:absolute;left:0;top:0;width:100%; display: block !important;}
+ .no-print{display:none}
 }
 </style>
 </head>
-
 <body>
 <div class="app">
-
-
 <aside class="sidebar" id="sidebar">
-  <h2>♻ Smart Waste</h2>
-
-  <div>
-    <label>Select State</label>
-    <select id="stateA"></select>
-    <button onclick="analyzeSingle()">Analyze</button>
-  </div>
-
-  <div>
-    <label>Compare States</label>
-    <select id="stateB"></select>
-    <select id="stateC"></select>
-    <button onclick="analyzeCompare()">Compare</button>
-  </div>
-
-  <button class="report-btn" onclick="generateGovReport()">
-    Generate Government Report
-  </button>
+ <h2>♻ Smart Waste</h2>
+ <div class="sidebar-section">
+ <label>Select State</label>
+ <select id="stateA"></select>
+ <button onclick="analyzeSingle()">Analyze</button>
+ </div>
+ <div class="sidebar-section">
+ <label>Compare States</label>
+ <select id="stateB"></select>
+ <select id="stateC"></select>
+ <button onclick="analyzeCompare()">Compare</button>
+ <button class="forecast-btn" onclick="triggerForecast()">Forecast Waste Levels</button>
+ <button class="report-btn" onclick="generateGovReport()">Generate Government Report</button>
+ </div>
 </aside>
-
-
 <main class="main">
-
 <button class="menu-btn" onclick="toggleSidebar()">☰ Menu</button>
-
 <h2 id="title">Smart Waste Dashboard</h2>
-
-<div class="card">
-  <h3>India Map</h3>
-  <div id="map"></div>
+<div class="map-chart-row">
+ <div class="card">
+ <h3 id="mapTitle">Live Logistics Map</h3>
+ <div id="map"></div>
+ <div style="display:flex; gap:10px;">
+ <button id="routeBtn" class="route-btn" style="display:none; flex:1;" onclick="optimizeRoute()">🚚 OPTIMIZE ROUTE</button>
+ <button id="dispatchBtn" class="route-btn" style="display:none; flex:1; border-color:#22c55e;" onclick="simulateDispatch()">🛡 DISPATCH VEHICLES</button>
+ <button id="overflowBtn" class="route-btn" style="display:none; flex:1; border-color:#ef4444;" onclick="simulateOverflow()">📍 REPORT OVERFLOW</button>
+ </div>
+ </div>
+ <div class="card">
+ <h3 id="pieTitle">Composition</h3>
+ <div class="chart-box"><canvas id="pieChart"></canvas></div>
+ <div class="chart-legend" id="dashboardLegend" style="display:none;">
+ <div class="legend-item"><span class="dot" style="background:#22c55e"></span> Organic</div>
+ <div class="legend-item"><span class="dot" style="background:#3b82f6"></span> Plastic</div>
+ <div class="legend-item"><span class="dot" style="background:#f97316"></span> C&D</div>
+ <div class="legend-item"><span class="dot" style="background:#ef4444"></span> E-Waste</div>
+ </div>
+ </div>
 </div>
-
-<div id="aiResult"></div>
-<div id="wsiContainer"></div>
-
+<div id="forecastOutput"></div>
+<div id="dynamicContent"></div>
 <div class="grid">
-  <div class="card">
-    <h3>Waste Trend</h3>
-    <div class="chart-box"><canvas id="lineChart"></canvas></div>
-  </div>
-  <div class="card">
-    <h3>Zone Waste Levels</h3>
-    <div class="chart-box"><canvas id="barChart"></canvas></div>
-  </div>
+ <div class="card">
+ <h3>Waste Trend & Forecast</h3>
+ <div class="chart-box"><canvas id="lineChart"></canvas></div>
+ </div>
+ <div class="card">
+ <h3>Zone Waste Levels</h3>
+ <div class="chart-box"><canvas id="barChart"></canvas></div>
+ </div>
 </div>
-
 <div id="reportOutput"></div>
-
 </main>
 </div>
-
 <script>
-const states=[
-"Andhra Pradesh","Arunachal Pradesh","Assam","Bihar","Chhattisgarh",
-"Goa","Gujarat","Haryana","Himachal Pradesh","Jharkhand","Karnataka",
-"Kerala","Madhya Pradesh","Maharashtra","Manipur","Meghalaya","Mizoram",
-"Nagaland","Odisha","Punjab","Rajasthan","Sikkim","Tamil Nadu","Telangana",
-"Tripura","Uttar Pradesh","Uttarakhand","West Bengal","Delhi"
-];
-
+const states=["Andhra Pradesh","Arunachal Pradesh","Assam","Bihar","Chhattisgarh","Goa","Gujarat","Haryana","Himachal Pradesh","Jharkhand","Karnataka","Kerala","Madhya Pradesh","Maharashtra","Manipur","Meghalaya","Mizoram","Nagaland","Odisha","Punjab","Rajasthan","Sikkim","Tamil Nadu","Telangana","Tripura","Uttar Pradesh","Uttarakhand","West Bengal","Delhi"];
 ["stateA","stateB","stateC"].forEach(id=>{
-  document.getElementById(id).innerHTML=
-    '<option value="">Select State</option>'+
-    states.map(s=>`<option>${s}</option>`).join("");
+ document.getElementById(id).innerHTML='<option value="">Select State</option>'+states.map(s=>`<option>${s}</option>`).join("");
 });
-
-const map=L.map("map").setView([20.59,78.96],5);
+const map=L.map("map").setView([20.59,78.96], 5);
 L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png").addTo(map);
-
-let markers=[],barChart=null,lineChart=null;
+let markers=[], overflowMarkers=[], barChart=null,lineChart=null,pieChart=null,routingControls = [];
 let reportData=[],labels=[];
-
-const barChartCanvas=document.getElementById("barChart");
-const lineChartCanvas=document.getElementById("lineChart");
-
+const solutions = {
+ organic: "Establish localized aerobic composting units and biogas converters.",
+ plastic: "Partner with industrial units for plastic-to-fuel co-processing.",
+ construction: "Set up debris processing plants to recycle aggregates.",
+ ewaste: "Incentivize authorized collection centers and deposit-refund systems."
+};
 async function fetchState(state){
-  const r=await fetch("https://smart-waste-backend-1kkx.onrender.com/state-analysis",{
-    method:"POST",headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({state})
-  });
-  return r.json();
+ try {
+ const r=await fetch("https://smart-waste-backend-1kkx.onrender.com/state-analysis",{
+ method:"POST",headers:{'Content-Type':'application/json'},
+ body:JSON.stringify({state})
+ });
+ return r.json();
+ } catch(e) { return null; }
 }
-
-function clearUI(){
-  aiResult.innerHTML="";
-  wsiContainer.innerHTML="";
+function toggleSidebar(){ document.getElementById("sidebar").classList.toggle("open"); }
+function getForecast(data) {
+ const n = data.length;
+ let sumX = 0, sumY = 0, sumXY = 0, sumX2 = 0;
+ for (let i = 0; i < n; i++) { sumX += i; sumY += data[i]; sumXY += i * data[i]; sumX2 += i * i; }
+ const slope = (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX);
+ const intercept = (sumY - slope * sumX) / n;
+ return Math.min(100, Math.max(0, Math.round(slope * n + intercept)));
 }
-
-function closeSidebarIfMobile(){
-  if(window.innerWidth<=768){
-    document.getElementById("sidebar").classList.remove("open");
-  }
+async function runAnalysis(stateList){
+ labels = stateList;
+ document.getElementById("forecastOutput").innerHTML = "";
+ routingControls.forEach(ctrl => map.removeControl(ctrl)); routingControls = [];
+ overflowMarkers.forEach(m => map.removeLayer(m)); overflowMarkers = [];
+ const results = await Promise.all(stateList.map(s => fetchState(s)));
+ reportData = results.filter(r => r !== null);
+ document.getElementById("title").textContent = labels.length > 1 ? `Comparison Mode` : `Dashboard: ${labels[0]}`;
+ document.getElementById("dashboardLegend").style.display = "flex";
+ document.getElementById("routeBtn").style.display = "block";
+ document.getElementById("dispatchBtn").style.display = "block";
+ document.getElementById("overflowBtn").style.display = "block";
+ refreshDashboard();
 }
-
-async function analyzeSingle(){
-  if(!stateA.value)return;
-  closeSidebarIfMobile();
-  clearUI();
-  reportData=[await fetchState(stateA.value)];
-  labels=[stateA.value];
-  title.textContent=`Smart Waste Dashboard: ${stateA.value}`;
-  render();
+function analyzeSingle(){ const v=document.getElementById("stateA").value; if(v){document.getElementById("sidebar").classList.remove("open"); runAnalysis([v]);} }
+function analyzeCompare(){ const b=document.getElementById("stateB").value, c=document.getElementById("stateC").value; if(b&&c){document.getElementById("sidebar").classList.remove("open"); runAnalysis([b,c]);} }
+function refreshDashboard() {
+ renderCharts();
+ renderDynamicContent();
 }
-
-async function analyzeCompare(){
-  if(!stateB.value||!stateC.value)return;
-  closeSidebarIfMobile();
-  clearUI();
-  reportData=[await fetchState(stateB.value),await fetchState(stateC.value)];
-  labels=[stateB.value,stateC.value];
-  title.textContent=`Smart Waste Dashboard: ${labels.join(" vs ")}`;
-  render();
+function simulateDispatch() {
+ if(!reportData.length) return;
+ alert("🚛 Dispatch signals sent to municipal fleet. Active zones are being cleared.");
+ reportData.forEach(d => {
+ d.avg = Math.max(10, Math.round(d.avg * 0.4)); 
+ d.zones = d.zones.map(z => Math.max(10, Math.round(z * 0.3))); 
+ d.trend[d.trend.length - 1] = d.avg; 
+ });
+ overflowMarkers.forEach(m => map.removeLayer(m));
+ overflowMarkers = [];
+ refreshDashboard();
 }
-
-function render(){
-  markers.forEach(m=>map.removeLayer(m));
-  markers=[];
-  if(barChart)barChart.destroy();
-  if(lineChart)lineChart.destroy();
-
-  reportData.forEach((d,i)=>{
-    markers.push(
-      L.marker([d.center.lat,d.center.lng])
-      .addTo(map)
-      .bindPopup(`${labels[i]}: ${d.avg}%`)
-    );
-  });
-
-  if(markers.length===1){
-    map.setView(markers[0].getLatLng(),7);
-  }else{
-    map.fitBounds(L.featureGroup(markers).getBounds().pad(0.5));
-  }
-
-  barChart=new Chart(barChartCanvas,{
-    type:"bar",
-    data:{labels:["Zone A","Zone B","Zone C"],
-      datasets:reportData.map((d,i)=>({
-        label:labels[i],data:d.zones,backgroundColor:"#22c55e"
-      }))
-    },
-    options:{maintainAspectRatio:false}
-  });
-
-  lineChart=new Chart(lineChartCanvas,{
-    type:"line",
-    data:{labels:["T1","T2","T3","T4","Now"],
-      datasets:reportData.map((d,i)=>({
-        label:labels[i],data:d.trend,borderColor:"#22c55e",tension:.4
-      }))
-    },
-    options:{maintainAspectRatio:false}
-  });
-
-  aiResult.innerHTML=reportData.map((d,i)=>`
-    <div class="card">
-      <h3>${labels[i]} – AI Analysis</h3>
-      <p>${d.advice}</p>
-    </div>`).join("");
-
-  renderWSI();
+function simulateOverflow() {
+ if(!reportData.length) return;
+ const idx = Math.floor(Math.random() * reportData.length);
+ const target = reportData[idx];
+ const stateName = labels[idx];
+ const lat = target.center.lat + (Math.random() - 0.5) * 0.8;
+ const lng = target.center.lng + (Math.random() - 0.5) * 0.8;
+ const marker = L.circleMarker([lat, lng], {
+ radius: 12,
+ fillColor: "#ef4444",
+ color: "#fff",
+ weight: 2,
+ opacity: 1,
+ fillOpacity: 0.8
+ }).addTo(map);
+ marker.bindPopup(`<b>📍 Citizen Report: ${stateName}</b><br>Manual Overflow Spotted! Dispatch priority vehicle immediately.`).openPopup();
+ overflowMarkers.push(marker);
+ alert(`⚠️ New citizen report in ${stateName}! Coordinate alert generated on map.`);
 }
-
-function renderWSI(){
-  wsiContainer.innerHTML=reportData.map((d,i)=>{
-    const score=Math.min(100,Math.max(0,d.avg+(d.trend.at(-1)-d.trend[0])));
-    let level="Low Risk",color="#22c55e";
-    if(score>=70){level="High Risk";color="#ef4444";}
-    else if(score>=50){level="Moderate Risk";color="#facc15";}
-    return `<div class="card">
-      <h3>${labels[i]} – Waste Severity Index</h3>
-      <h2 style="color:${color}">${level}</h2>
-      <p><b>Score:</b> ${score}/100</p>
-    </div>`;
-  }).join("");
+function renderCharts(){
+ markers.forEach(m=>map.removeLayer(m)); markers=[];
+ if(barChart)barChart.destroy(); if(lineChart)lineChart.destroy(); if(pieChart)pieChart.destroy();
+ reportData.forEach((d,i)=>{
+ const color = d.avg > 75 ? "#ef4444" : "#22c55e";
+ const marker = L.marker([d.center.lat,d.center.lng]).addTo(map);
+ marker.bindPopup(`<b>${labels[i]}</b><br>Waste: ${d.avg}%<div class="fill-bar-bg"><div class="fill-bar-inner" style="width:${d.avg}%; background:${color}"></div></div>`);
+ markers.push(marker);
+ });
+ if(markers.length===1) map.setView(markers[0].getLatLng(),7); else map.fitBounds(L.featureGroup(markers).getBounds().pad(0.5));
+ barChart = new Chart(document.getElementById("barChart"),{
+ type:"bar", data:{labels:["Zone A","Zone B","Zone C"], datasets:reportData.map((d,i)=>({label:labels[i],data:d.zones,backgroundColor:i===0?"#22c55e":"#3b82f6"}))},
+ options:{maintainAspectRatio:false, animation: false}
+ });
+ const lineDatasets = [];
+ reportData.forEach((d, i) => {
+ const color = i === 0 ? "#22c55e" : "#3b82f6";
+ lineDatasets.push({ label: `${labels[i]}`, data: d.trend, borderColor: color, tension: 0.4 });
+ });
+ lineChart = new Chart(document.getElementById("lineChart"),{
+ type:"line", data: { labels: ["T1", "T2", "T3", "T4", "Now"], datasets: lineDatasets },
+ options:{maintainAspectRatio:false, animation: false}
+ });
+ const avg=reportData.reduce((s,d)=>s+d.avg,0)/reportData.length;
+ pieChart = new Chart(document.getElementById("pieChart"),{
+ type:"doughnut", data:{labels:["Organic","Plastic","C&D","E-Waste"], datasets:[{data:[Math.round(avg*45),Math.round(avg*30),Math.round(avg*15),Math.round(avg*10)],backgroundColor:["#22c55e","#3b82f6","#f97316","#ef4444"],borderWidth:0}]},
+ options:{maintainAspectRatio:false, animation: false, plugins:{legend:{display:false}}}
+ });
 }
-
+function triggerForecast() {
+ if(!reportData.length) return;
+ document.getElementById("sidebar").classList.remove("open");
+ lineChart.data.labels = ["T1", "T2", "T3", "T4", "Now", "Forecast"];
+ const forecastDatasets = [];
+ reportData.forEach((d, i) => {
+ const fVal = getForecast(d.trend);
+ const color = i === 0 ? "#22c55e" : "#3b82f6";
+ forecastDatasets.push({ label: `${labels[i]}`, data: [...d.trend, null], borderColor: color, tension: 0.4 });
+ forecastDatasets.push({ label: `Forecast`, data: [null, null, null, null, d.trend[4], fVal], borderColor: color, borderDash: [5, 5], tension: 0.4 });
+ });
+ lineChart.data.datasets = forecastDatasets;
+ lineChart.update();
+ document.getElementById("forecastOutput").innerHTML = reportData.map((d, i) => {
+ const f = getForecast(d.trend);
+ return `<div class="card" style="border-left: 5px solid #3b82f6;">
+ <h3>🔮 Future Outlook: ${labels[i]}</h3>
+ <p>Based on linear trend analysis, waste levels are projected to reach <b>${getForecast(d.trend)}%</b> by next week.</p>
+ </div>`;
+ }).join("");
+ document.getElementById("forecastOutput").scrollIntoView({ behavior: 'smooth' });
+}
+function optimizeRoute() {
+ reportData.forEach((d, i) => {
+ const waypoints = [L.latLng(d.center.lat, d.center.lng), L.latLng(d.center.lat + 0.1, d.center.lng + 0.1)];
+ const ctrl = L.Routing.control({ waypoints: waypoints, lineOptions: { styles: [{ color: i===0?'#22c55e':'#3b82f6', weight: 6 }] }, createMarker: () => null }).addTo(map);
+ routingControls.push(ctrl);
+ });
+}
+function renderDynamicContent() {
+ document.getElementById("dynamicContent").innerHTML = reportData.map((d, i) => {
+ const score = d.avg;
+ return `
+ <div class="card"><h3>${labels[i]} AI Analysis</h3><p>${d.advice}</p></div>
+ <div class="card wsi-long-box">
+ <h3>${labels[i]} Severity Index</h3>
+ <div class="wsi-status" style="color:${score >= 70 ? '#ef4444' : score >= 50 ? '#facc15' : '#22c55e'}">${score >= 70 ? 'High Risk' : score >= 50 ? 'Moderate Risk' : 'Low Risk'} (${score}/100)</div>
+ </div>
+ <div class="card offset-box">
+ <h3>🌍 Sustainability Impact: ${labels[i]}</h3>
+ <p>Projected <b>${Math.round(d.avg * 1.25)} kg</b> of CO2 saved weekly through organic diversion.</p>
+ </div>
+ <div class="card">
+ <h3>Reduction Solutions: ${labels[i]}</h3>
+ <div class="sol-grid">
+ <div class="sol-item"><span class="dot" style="background:#22c55e"></span> <div class="sol-text"><b>Organic:</b> ${solutions.organic}</div></div>
+ <div class="sol-item"><span class="dot" style="background:#3b82f6"></span> <div class="sol-text"><b>Plastic:</b> ${solutions.plastic}</div></div>
+ <div class="sol-item"><span class="dot" style="background:#f97316"></span> <div class="sol-text"><b>C&D:</b> ${solutions.construction}</div></div>
+ <div class="sol-item"><span class="dot" style="background:#ef4444"></span> <div class="sol-text"><b>E-Waste:</b> ${solutions.ewaste}</div></div>
+ </div>
+ </div>`;
+ }).join("");
+}
 function generateGovReport(){
-  if(!reportData.length)return;
-
-  closeSidebarIfMobile();   
-
-  const date=new Date().toLocaleDateString("en-IN");
-  reportOutput.innerHTML=`
-    <div class="gov-report">
-      <div class="gov-header">
-        <h1>Government of India</h1>
-        <h2>Ministry of Environment, Forest and Climate Change</h2>
-        <h3>Smart Waste Management Assessment Report</h3>
-        <p><b>Date:</b> ${date}</p>
-      </div>
-      ${reportData.map((d,i)=>`
-        <div class="gov-section">
-          <h3>${labels[i]}</h3>
-          <table class="gov-table">
-            <tr><th>Metric</th><th>Value</th></tr>
-            <tr><td>Average Waste</td><td>${d.avg}%</td></tr>
-            <tr><td>Zone A</td><td>${d.zones[0]}%</td></tr>
-            <tr><td>Zone B</td><td>${d.zones[1]}%</td></tr>
-            <tr><td>Zone C</td><td>${d.zones[2]}%</td></tr>
-          </table>
-          <p><b>AI Observation:</b> ${d.advice}</p>
-        </div>`).join("")}
-      <div style="text-align:center">
-        <button onclick="window.print()">Download PDF</button>
-      </div>
-    </div>`;
-}
-
-function toggleSidebar(){
-  document.getElementById("sidebar").classList.toggle("open");
+ if(!reportData.length) return;
+ document.getElementById("sidebar").classList.remove("open");
+ const barImg=barChart.toBase64Image(), lineImg=lineChart.toBase64Image(), pieImg=pieChart.toBase64Image();
+ const date=new Date().toLocaleDateString("en-IN");
+ const output = document.getElementById("reportOutput");
+ output.innerHTML=`
+ <div class="gov-report" id="reportAnchor" style="display: block;">
+ <div class="gov-header">
+ <h1>Government of India</h1>
+ <h2>Smart Waste Official Assessment</h2>
+ <p><b>Date:</b> ${date} | <b>Target:</b> ${labels.join(" & ")}</p>
+ </div>
+ ${reportData.map((d,i)=>`
+ <div class="gov-section">
+ <h3>${labels[i]} Assessment Summary</h3>
+ <div class="zone-item"><span>Current Avg Waste:</span> <span>${d.avg}%</span></div>
+ <div class="zone-item"><span>Zone A:</span> <span>${d.zones[0]}%</span></div>
+ <div class="zone-item"><span>Zone B:</span> <span>${d.zones[1]}%</span></div>
+ <div class="zone-item"><span>Zone C:</span> <span>${d.zones[2]}%</span></div>
+ <p style="margin-top:10px; font-weight:bold;">Future Projection:</p>
+ <p>Based on linear trend analysis, waste levels are projected to reach <b>${getForecast(d.trend)}%</b> by next week.</p>
+ <p style="margin-top:10px; font-weight:bold;">Waste Reduction Solutions:</p>
+ <ul style="padding-left: 20px; font-size: 14px;">
+ <li><b>Organic:</b> ${solutions.organic}</li>
+ <li><b>Plastic:</b> ${solutions.plastic}</li>
+ <li><b>C&D Waste:</b> ${solutions.construction}</li>
+ <li><b>E-Waste:</b> ${solutions.ewaste}</li>
+ </ul>
+ <p><b>AI Analysis:</b> ${d.advice}</p>
+ </div>`).join("")}
+ <div class="gov-section">
+ <h4 style="text-align:center">Predictive & Zonal Analytics</h4>
+ <div class="gov-graph-row">
+ <div class="gov-graph-box"><p>Waste Trend</p><img src="${lineImg}"></div>
+ <div class="gov-graph-box"><p>Zonal Comparison</p><img src="${barImg}"></div>
+ </div>
+ <div style="text-align:center; margin-top:20px;">
+ <p>Combined Composition</p>
+ <img src="${pieImg}" style="width:160px;">
+ <div style="font-size:10px; margin-top:10px;">
+ <span style="color:#22c55e; font-weight:bold;">■</span> Organic &nbsp;
+ <span style="color:#3b82f6; font-weight:bold;">■</span> Plastic &nbsp;
+ <span style="color:#f97316; font-weight:bold;">■</span> C&D &nbsp;
+ <span style="color:#ef4444; font-weight:bold;">■</span> E-Waste
+ </div>
+ </div>
+ </div>
+ <div style="text-align:center; padding: 20px;" class="no-print">
+ <button onclick="window.print()" style="background:#000; color:#fff; width:auto; padding: 12px 30px; border:none; border-radius:5px;">PRINT / SAVE PDF</button>
+ </div>
+ </div>`;
+ setTimeout(() => document.getElementById("reportAnchor").scrollIntoView({ behavior: 'smooth', block: 'start' }), 300);
 }
 </script>
 </body>

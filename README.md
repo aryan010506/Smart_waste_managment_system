@@ -88,4 +88,4 @@ Smart_waste_managment_system/
 ---
 
 ## 📜 License
-This project is developed for educational and hackathon purposes. Developed with ❤️ for a cleaner, smarter, and more sustainable future.
+This project is developed for educational and hackathon purposes. Developed for a cleaner, smarter, and more sustainable future.
